@@ -135,7 +135,7 @@ if cover_file and secret_file:
     cover_pil  = tensor_to_pil(cover_tensor, mean, std)
     secret_pil = tensor_to_pil(secret_tensor, mean, std)
     stego_pil = tensor_to_pil(stego_image, mean, std)
-    revealed_pil = tensor_to_image(revealed_secret, mean, std)
+    revealed_pil = tensor_to_pil(revealed_secret, mean, std)
 
     st.subheader("Results")
     col1, col2, col3, col4 = st.columns(4)
