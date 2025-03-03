@@ -93,3 +93,40 @@ hide_net.eval()
 reveal_net.eval()
 
 st.write("Models loaded successfully!")
+st.sidebar.header("Upload Images")
+cover_file = st.sidebar.file_uploader("Upload Cover Image", type=["jpg", "png", "jpeg"])
+secret_file = st.sidebar.file_uploader("Upload Secret Image", type=["jpg", "png", "jpeg"])
+
+if cover_file and secret_file:
+    cover_image = Image.open(cover_file).convert("RGB")
+    secret_image = Image.open(secret_file).convert("RGB")
+
+    cover_tensor = preprocess_image(cover_image)
+    secret_tensor = preprocess_image(secret_image)
+
+    with torch.no_grad():
+        prepared_secret = prep_net(secret_tensor)
+        stego_image = hide_net(cover_tensor, prepared_secret)
+        revealed_secret = reveal_net(stego_image)
+
+    # Convert tensors to images
+    def tensor_to_image(tensor):
+        tensor = tensor.squeeze(0).cpu().permute(1, 2, 0).numpy()
+        tensor = np.clip(tensor, 0, 1)
+        return Image.fromarray((tensor * 255).astype(np.uint8))
+
+    cover_pil = tensor_to_image(cover_tensor)
+    secret_pil = tensor_to_image(secret_tensor)
+    stego_pil = tensor_to_image(stego_image)
+    revealed_pil = tensor_to_image(revealed_secret)
+
+    st.subheader("Results")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.image(cover_pil, caption="Cover Image", use_column_width=True)
+    col2.image(secret_pil, caption="Secret Image", use_column_width=True)
+    col3.image(stego_pil, caption="Stego Image", use_column_width=True)
+    col4.image(revealed_pil, caption="Revealed Secret", use_column_width=True)
+
+    # Download Stego Image
+    st.subheader("Download Stego Image")
+    st.download_button("Download", stego_pil.tobytes(), "stego_image.png", "image/png")
