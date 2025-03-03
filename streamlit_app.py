@@ -2,9 +2,11 @@ import streamlit as st
 import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
+import sqlite3
 from PIL import Image
-import numpy as np
-import matplotlib.pyplot as plt
+import os
+import hashlib
+import base64
 
 st.title('🕵️Stego-App')
 
@@ -75,26 +77,6 @@ class RevealNetwork(nn.Module):
             b3 = self.relu(conv_layer(b3))
         combined = torch.cat((b1, b2, b3), dim=1)
         return self.final_conv(combined)
-# Initialize networks
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-prep_net = PreparationNetwork().to(device)
-hide_net = HidingNetwork().to(device)
-reveal_net = RevealNetwork().to(device)
-
-# Load the saved weights
-prep_net.load_state_dict(torch.load("preparation_network.pth", map_location=device))
-hide_net.load_state_dict(torch.load("hiding_network.pth", map_location=device))
-reveal_net.load_state_dict(torch.load("reveal_network.pth", map_location=device))
-
-# Set to evaluation mode
-prep_net.eval()
-hide_net.eval()
-reveal_net.eval()
-
-st.write("Models loaded successfully!")
-
-# Convert tensors to images
 def tensor_to_pil(image_tensor, mean, std):
 
     denormalize = transforms.Normalize(
@@ -104,46 +86,86 @@ def tensor_to_pil(image_tensor, mean, std):
     denormalized_tensor = denormalize(image_tensor.squeeze(0).cpu())
     transform_to_pil = transforms.ToPILImage()
     return transform_to_pil(torch.clamp(denormalized_tensor, 0, 1))
-st.sidebar.header("Upload Images")
-cover_file = st.sidebar.file_uploader("Upload Cover Image", type=["jpg", "png", "jpeg"])
-secret_file = st.sidebar.file_uploader("Upload Secret Image", type=["jpg", "png", "jpeg"])
 
-if cover_file and secret_file:
-    cover_image = Image.open(cover_file).convert("RGB")
-    secret_image = Image.open(secret_file).convert("RGB")
-    mean = [0.485, 0.456, 0.406]
-    std = [0.229, 0.224, 0.225]
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
 
-    # Image transformation
-    transform = transforms.Compose([
-        transforms.Resize((256, 256)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=mean, std=std)
-    ])
-    cover_tensor = transform(cover_image).unsqueeze(0).to(device)
-    secret_tensor = transform(secret_image).unsqueeze(0).to(device)
+def create_users_table():
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
 
-    with torch.no_grad():
-        prepared_secret = prep_net(secret_tensor)
-        stego_image = hide_net(cover_tensor, prepared_secret)
-        stego_pil = tensor_to_pil(stego_image, mean, std)
-        stego_tensor = transform(stego_pil).unsqueeze(0).to(device)
-        revealed_secret = reveal_net(stego_tensor)
+def register_user(username, password):
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    try:
+        c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hash_password(password)))
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False
+    finally:
+        conn.close()
 
+def authenticate_user(username, password):
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, hash_password(password)))
+    user = c.fetchone()
+    conn.close()
+    return user
 
+def save_stego_image(username, image):
+    os.makedirs("stego_images", exist_ok=True)
+    filepath = f"stego_images/{username}_stego.png"
+    image.save(filepath)
+    return filepath
 
-    cover_pil  = tensor_to_pil(cover_tensor, mean, std)
-    secret_pil = tensor_to_pil(secret_tensor, mean, std)
-    stego_pil = tensor_to_pil(stego_image, mean, std)
-    revealed_pil = tensor_to_pil(revealed_secret, mean, std)
+def load_stego_image(username):
+    filepath = f"stego_images/{username}_stego.png"
+    return Image.open(filepath) if os.path.exists(filepath) else None
 
-    st.subheader("Results")
-    col1, col2, col3, col4 = st.columns(4)
-    col1.image(cover_pil, caption="Cover Image", use_container_width=True)
-    col2.image(secret_pil, caption="Secret Image",use_container_width=True)
-    col3.image(stego_pil, caption="Stego Image", use_container_width=True)
-    col4.image(revealed_pil, caption="Revealed Secret", use_container_width=True)
+st.title("🕵️ Stego-App")
+create_users_table()
 
-    # Download Stego Image
-    st.subheader("Download Stego Image")
-    st.download_button("Download", stego_pil.tobytes(), "stego_image.png", "image/png")
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
+    st.session_state["username"] = ""
+
+def login():
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if authenticate_user(username, password):
+            st.session_state["logged_in"] = True
+            st.session_state["username"] = username
+            st.experimental_rerun()
+        else:
+            st.error("Invalid username or password")
+
+def register():
+    username = st.text_input("New Username")
+    password = st.text_input("New Password", type="password")
+    if st.button("Register"):
+        if register_user(username, password):
+            st.success("Registration successful! Please log in.")
+        else:
+            st.error("Username already exists.")
+
+if not st.session_state["logged_in"]:
+    option = st.radio("Choose an option", ["Login", "Register"])
+    if option == "Login":
+        login()
+    else:
+        register()
+    st.stop()
+
+st.sidebar.header(f"Welcome, {st.session_state['username']}")
