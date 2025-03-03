@@ -116,8 +116,8 @@ if cover_file and secret_file:
         transforms.ToTensor(),
         transforms.Normalize(mean=mean, std=std)
     ])
-    cover_tensor = transform(cover_img).unsqueeze(0).to(device)
-    secret_tensor = transform(secret_img).unsqueeze(0).to(device)
+    cover_tensor = transform(cover_image).unsqueeze(0).to(device)
+    secret_tensor = transform(secret_image).unsqueeze(0).to(device)
 
     with torch.no_grad():
         prepared_secret = prep_net(secret_tensor)
