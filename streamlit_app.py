@@ -1,5 +1,5 @@
 import streamlit as st
 
-st.title('🎈 App Name')
+st.title('Stego-App')
 
-st.write('Hello world!')
+st.write('hide and seek of images')
