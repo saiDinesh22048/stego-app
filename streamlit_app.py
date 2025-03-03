@@ -107,25 +107,40 @@ secret_file = st.sidebar.file_uploader("Upload Secret Image", type=["jpg", "png"
 if cover_file and secret_file:
     cover_image = Image.open(cover_file).convert("RGB")
     secret_image = Image.open(secret_file).convert("RGB")
+    mean = [0.485, 0.456, 0.406]
+    std = [0.229, 0.224, 0.225]
 
-    cover_tensor = preprocess_image(cover_image)
-    secret_tensor = preprocess_image(secret_image)
+    # Image transformation
+    transform = transforms.Compose([
+        transforms.Resize((256, 256)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=mean, std=std)
+    ])
+    cover_tensor = transform(cover_img).unsqueeze(0).to(device)
+    secret_tensor = transform(secret_img).unsqueeze(0).to(device)
 
     with torch.no_grad():
         prepared_secret = prep_net(secret_tensor)
         stego_image = hide_net(cover_tensor, prepared_secret)
-        revealed_secret = reveal_net(stego_image)
+        stego_pil = tensor_to_pil(stego_image, mean, std)
+        stego_tensor = transform(stego_pil).unsqueeze(0).to(device)
+        revealed_secret = reveal_net(stego_tensor)
 
     # Convert tensors to images
-    def tensor_to_image(tensor):
-        tensor = tensor.squeeze(0).cpu().permute(1, 2, 0).numpy()
-        tensor = np.clip(tensor, 0, 1)
-        return Image.fromarray((tensor * 255).astype(np.uint8))
+    def tensor_to_pil(image_tensor, mean, std):
+ 
+        denormalize = transforms.Normalize(
+            mean=[-m / s for m, s in zip(mean, std)],
+            std=[1 / s for s in std]
+        )
+        denormalized_tensor = denormalize(image_tensor.squeeze(0).cpu())
+        transform_to_pil = transforms.ToPILImage()
+        return transform_to_pil(torch.clamp(denormalized_tensor, 0, 1))
 
-    cover_pil = tensor_to_image(cover_tensor)
-    secret_pil = tensor_to_image(secret_tensor)
-    stego_pil = tensor_to_image(stego_image)
-    revealed_pil = tensor_to_image(revealed_secret)
+    cover_pil  = tensor_to_pil(cover_tensor, mean, std)
+    secret_pil = tensor_to_pil(secret_tensor, mean, std)
+    stego_pil = tensor_to_pil(stego_image, mean, std)
+    revealed_pil = tensor_to_image(revealed_secret, mean, std)
 
     st.subheader("Results")
     col1, col2, col3, col4 = st.columns(4)
