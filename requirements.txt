@@ -1,1 +1,8 @@
 streamlit>=1.26.0
+torch
+torchvision
+numpy
+Pillow
+matplotlib
+scipy
+scikit-image
