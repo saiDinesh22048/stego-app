@@ -129,10 +129,10 @@ if cover_file and secret_file:
 
     st.subheader("Results")
     col1, col2, col3, col4 = st.columns(4)
-    col1.image(cover_pil, caption="Cover Image", use_column_width=True)
-    col2.image(secret_pil, caption="Secret Image", use_column_width=True)
-    col3.image(stego_pil, caption="Stego Image", use_column_width=True)
-    col4.image(revealed_pil, caption="Revealed Secret", use_column_width=True)
+    col1.image(cover_pil, caption="Cover Image", use_container_width=True)
+    col2.image(secret_pil, caption="Secret Image",use_container_width=True)
+    col3.image(stego_pil, caption="Stego Image", use_container_width=True)
+    col4.image(revealed_pil, caption="Revealed Secret", use_container_width=True)
 
     # Download Stego Image
     st.subheader("Download Stego Image")
