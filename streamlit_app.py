@@ -93,6 +93,13 @@ hide_net.eval()
 reveal_net.eval()
 
 st.write("Models loaded successfully!")
+
+def preprocess_image(image):
+    transform = transforms.Compose([
+        transforms.Resize((256, 256)),
+        transforms.ToTensor(),
+    ])
+    return transform(image).unsqueeze(0).to(device)
 st.sidebar.header("Upload Images")
 cover_file = st.sidebar.file_uploader("Upload Cover Image", type=["jpg", "png", "jpeg"])
 secret_file = st.sidebar.file_uploader("Upload Secret Image", type=["jpg", "png", "jpeg"])
