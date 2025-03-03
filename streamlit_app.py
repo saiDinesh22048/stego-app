@@ -94,12 +94,16 @@ reveal_net.eval()
 
 st.write("Models loaded successfully!")
 
-def preprocess_image(image):
-    transform = transforms.Compose([
-        transforms.Resize((256, 256)),
-        transforms.ToTensor(),
-    ])
-    return transform(image).unsqueeze(0).to(device)
+# Convert tensors to images
+def tensor_to_pil(image_tensor, mean, std):
+
+    denormalize = transforms.Normalize(
+        mean=[-m / s for m, s in zip(mean, std)],
+        std=[1 / s for s in std]
+    )
+    denormalized_tensor = denormalize(image_tensor.squeeze(0).cpu())
+    transform_to_pil = transforms.ToPILImage()
+    return transform_to_pil(torch.clamp(denormalized_tensor, 0, 1))
 st.sidebar.header("Upload Images")
 cover_file = st.sidebar.file_uploader("Upload Cover Image", type=["jpg", "png", "jpeg"])
 secret_file = st.sidebar.file_uploader("Upload Secret Image", type=["jpg", "png", "jpeg"])
@@ -126,16 +130,7 @@ if cover_file and secret_file:
         stego_tensor = transform(stego_pil).unsqueeze(0).to(device)
         revealed_secret = reveal_net(stego_tensor)
 
-    # Convert tensors to images
-    def tensor_to_pil(image_tensor, mean, std):
- 
-        denormalize = transforms.Normalize(
-            mean=[-m / s for m, s in zip(mean, std)],
-            std=[1 / s for s in std]
-        )
-        denormalized_tensor = denormalize(image_tensor.squeeze(0).cpu())
-        transform_to_pil = transforms.ToPILImage()
-        return transform_to_pil(torch.clamp(denormalized_tensor, 0, 1))
+
 
     cover_pil  = tensor_to_pil(cover_tensor, mean, std)
     secret_pil = tensor_to_pil(secret_tensor, mean, std)
