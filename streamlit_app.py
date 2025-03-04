@@ -80,7 +80,7 @@ def remove_user(username):
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
     c.execute("DELETE FROM users WHERE username=?", (username,))
-    c.execute("DELETE FROM messages WHERE sender=? OR recipient=?", (username, username))
+    c.execute("DELETE FROM messages WHERE sender=? OR receiver=?", (username, username))
     conn.commit()
     conn.close()
 
