@@ -13,7 +13,7 @@ st.info('hide and seek of images')
 # Load the trained models
 class PreparationNetwork(nn.Module):
     def __init__(self):
-        super(PreparationNetwork, self)._init_()
+        super(PreparationNetwork, self).__init__()
         self.branch1_conv1 = nn.Conv2d(3, 50, kernel_size=3, padding=1)
         self.branch1_conv2 = nn.Conv2d(50, 50, kernel_size=3, padding=1)
         self.branch2_conv1 = nn.Conv2d(3, 10, kernel_size=3, padding=1)
@@ -33,7 +33,7 @@ class PreparationNetwork(nn.Module):
 
 class HidingNetwork(nn.Module):
     def __init__(self):
-        super(HidingNetwork, self)._init_()
+        super(HidingNetwork, self).__init__()
         self.input_conv = nn.Conv2d(68, 50, kernel_size=3, padding=1)
         self.branch1_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(5)])
         self.branch2_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(2)])
@@ -56,7 +56,7 @@ class HidingNetwork(nn.Module):
 
 class RevealNetwork(nn.Module):
     def __init__(self):
-        super(RevealNetwork, self)._init_()
+        super(RevealNetwork, self).__init__()
         self.initial_conv = nn.Conv2d(3, 50, kernel_size=3, padding=1)
         self.branch1_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(5)])
         self.branch2_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(2)])
