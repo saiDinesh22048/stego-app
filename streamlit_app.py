@@ -1,96 +1,14 @@
 import streamlit as st
+import sqlite3
 import torch
 import torch.nn as nn
-import torchvision.transforms as transforms
-import sqlite3
 from PIL import Image
-import os
-import hashlib
+import numpy as np
+import io
 import base64
 
-st.title('🕵️Stego-App')
-
-st.info('hide and seek of images')
-
-# Load the trained models
-class PreparationNetwork(nn.Module):
-    def __init__(self):
-        super(PreparationNetwork, self).__init__()
-        self.branch1_conv1 = nn.Conv2d(3, 50, kernel_size=3, padding=1)
-        self.branch1_conv2 = nn.Conv2d(50, 50, kernel_size=3, padding=1)
-        self.branch2_conv1 = nn.Conv2d(3, 10, kernel_size=3, padding=1)
-        self.branch2_conv2 = nn.Conv2d(10, 10, kernel_size=3, padding=1)
-        self.branch3_conv1 = nn.Conv2d(3, 5, kernel_size=3, padding=1)
-        self.branch3_conv2 = nn.Conv2d(5, 5, kernel_size=3, padding=1)
-        self.relu = nn.ReLU()
-
-    def forward(self, x):
-        b1 = self.relu(self.branch1_conv1(x))
-        b1 = self.relu(self.branch1_conv2(b1))
-        b2 = self.relu(self.branch2_conv1(x))
-        b2 = self.relu(self.branch2_conv2(b2))
-        b3 = self.relu(self.branch3_conv1(x))
-        b3 = self.relu(self.branch3_conv2(b3))
-        return torch.cat((b1, b2, b3), dim=1)  # 65 channels
-
-class HidingNetwork(nn.Module):
-    def __init__(self):
-        super(HidingNetwork, self).__init__()
-        self.input_conv = nn.Conv2d(68, 50, kernel_size=3, padding=1)
-        self.branch1_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(5)])
-        self.branch2_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(2)])
-        self.branch3_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(2)])
-        self.final_conv = nn.Conv2d(150, 3, kernel_size=3, padding=1)  
-        self.relu = nn.ReLU()
-
-    def forward(self, cover, secret):
-        x = torch.cat((cover, secret), dim=1)
-        x = self.relu(self.input_conv(x))
-        b1, b2, b3 = x, x, x
-        for conv_layer in self.branch1_convs:
-            b1 = self.relu(conv_layer(b1))
-        for conv_layer in self.branch2_convs:
-            b2 = self.relu(conv_layer(b2))
-        for conv_layer in self.branch3_convs:
-            b3 = self.relu(conv_layer(b3))
-        combined = torch.cat((b1, b2, b3), dim=1)
-        return self.final_conv(combined)
-
-class RevealNetwork(nn.Module):
-    def __init__(self):
-        super(RevealNetwork, self).__init__()
-        self.initial_conv = nn.Conv2d(3, 50, kernel_size=3, padding=1)
-        self.branch1_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(5)])
-        self.branch2_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(2)])
-        self.branch3_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(2)])
-        self.final_conv = nn.Conv2d(150, 3, kernel_size=3, padding=1)  
-        self.relu = nn.ReLU()
-
-    def forward(self, x):
-        x = self.relu(self.initial_conv(x))
-        b1, b2, b3 = x, x, x
-        for conv_layer in self.branch1_convs:
-            b1 = self.relu(conv_layer(b1))
-        for conv_layer in self.branch2_convs:
-            b2 = self.relu(conv_layer(b2))
-        for conv_layer in self.branch3_convs:
-            b3 = self.relu(conv_layer(b3))
-        combined = torch.cat((b1, b2, b3), dim=1)
-        return self.final_conv(combined)
-def tensor_to_pil(image_tensor, mean, std):
-
-    denormalize = transforms.Normalize(
-        mean=[-m / s for m, s in zip(mean, std)],
-        std=[1 / s for s in std]
-    )
-    denormalized_tensor = denormalize(image_tensor.squeeze(0).cpu())
-    transform_to_pil = transforms.ToPILImage()
-    return transform_to_pil(torch.clamp(denormalized_tensor, 0, 1))
-
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
-
-def create_users_table():
+# Initialize database
+def init_db():
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
     c.execute("""
@@ -103,11 +21,12 @@ def create_users_table():
     conn.commit()
     conn.close()
 
+# User authentication functions
 def register_user(username, password):
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
     try:
-        c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hash_password(password)))
+        c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
         conn.commit()
         return True
     except sqlite3.IntegrityError:
@@ -118,54 +37,77 @@ def register_user(username, password):
 def authenticate_user(username, password):
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
-    c.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, hash_password(password)))
+    c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
     user = c.fetchone()
     conn.close()
     return user
 
-def save_stego_image(username, image):
-    os.makedirs("stego_images", exist_ok=True)
-    filepath = f"stego_images/{username}_stego.png"
-    image.save(filepath)
-    return filepath
+# Dummy steganography model (Replace with actual model)
+class SimpleStegoModel(nn.Module):
+    def forward(self, cover, secret):
+        return cover  # Dummy model (Replace with actual implementation)
 
-def load_stego_image(username):
-    filepath = f"stego_images/{username}_stego.png"
-    return Image.open(filepath) if os.path.exists(filepath) else None
+def encode_image(cover_image, secret_image):
+    model = SimpleStegoModel()
+    cover_tensor = torch.tensor(np.array(cover_image)).float()
+    secret_tensor = torch.tensor(np.array(secret_image)).float()
+    stego_image = model(cover_tensor, secret_tensor)
+    stego_pil = Image.fromarray(stego_image.numpy().astype(np.uint8))
+    return stego_pil
 
-st.title("🕵️ Stego-App")
-create_users_table()
+def decode_image(stego_image):
+    return stego_image  # Dummy decoder (Replace with actual implementation)
 
-if "logged_in" not in st.session_state:
-    st.session_state["logged_in"] = False
-    st.session_state["username"] = ""
+# Streamlit UI
+st.title("Secure Image Steganography")
+init_db()
 
-def login():
+# Authentication
+menu = ["Login", "Register"]
+choice = st.sidebar.selectbox("Menu", menu)
+
+if choice == "Register":
+    st.subheader("Create an Account")
+    new_user = st.text_input("Username")
+    new_pass = st.text_input("Password", type="password")
+    if st.button("Register"):
+        if register_user(new_user, new_pass):
+            st.success("Registered successfully! Please login.")
+        else:
+            st.warning("Username already taken.")
+
+elif choice == "Login":
+    st.subheader("Login to your Account")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
     if st.button("Login"):
         if authenticate_user(username, password):
             st.session_state["logged_in"] = True
             st.session_state["username"] = username
-            st.experimental_rerun()
         else:
-            st.error("Invalid username or password")
+            st.error("Invalid credentials")
 
-def register():
-    username = st.text_input("New Username")
-    password = st.text_input("New Password", type="password")
-    if st.button("Register"):
-        if register_user(username, password):
-            st.success("Registration successful! Please log in.")
-        else:
-            st.error("Username already exists.")
+if "logged_in" in st.session_state and st.session_state["logged_in"]:
+    st.sidebar.subheader(f"Welcome, {st.session_state['username']}")
+    option = st.sidebar.radio("Choose Action", ["Encode Image", "Decode Image"])
 
-if not st.session_state["logged_in"]:
-    option = st.radio("Choose an option", ["Login", "Register"])
-    if option == "Login":
-        login()
-    else:
-        register()
-    st.stop()
-
-st.sidebar.header(f"Welcome, {st.session_state['username']}")
+    if option == "Encode Image":
+        st.subheader("Upload Cover and Secret Image")
+        cover = st.file_uploader("Choose Cover Image", type=["png", "jpg", "jpeg"])
+        secret = st.file_uploader("Choose Secret Image", type=["png", "jpg", "jpeg"])
+        if cover and secret:
+            cover_image = Image.open(cover).convert("RGB")
+            secret_image = Image.open(secret).convert("RGB")
+            stego_image = encode_image(cover_image, secret_image)
+            st.image(stego_image, caption="Stego Image", use_container_width=True)
+            buf = io.BytesIO()
+            stego_image.save(buf, format="PNG")
+            st.download_button("Download Stego Image", buf.getvalue(), "stego.png", "image/png")
+    
+    elif option == "Decode Image":
+        st.subheader("Upload Stego Image to Reveal Secret Image")
+        stego = st.file_uploader("Choose Stego Image", type=["png", "jpg", "jpeg"])
+        if stego:
+            stego_image = Image.open(stego).convert("RGB")
+            secret_image = decode_image(stego_image)
+            st.image(secret_image, caption="Revealed Secret Image", use_container_width=True)
