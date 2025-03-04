@@ -294,7 +294,7 @@ if "logged_in" in st.session_state:
                     stego_pil = tensor_to_pil(stego_image, mean, std)
 
                 image_bytes = pil_to_bytes(stego_pil, format='JPEG')
-                st.image(stego_pil, caption="Stego Image",use_container_width=True)
+                st.image(stego_pil, caption="Stego Image",width=200)
                 send_stego_image(st.session_state["username"], receiver, image_bytes)
                 st.success("Stego image sent!")
        
