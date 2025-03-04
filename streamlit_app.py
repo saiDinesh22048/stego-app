@@ -281,6 +281,10 @@ if "logged_in" in st.session_state:
                 image_bytes = pil_to_bytes(stego_pil, format='JPEG')
                 send_stego_image(st.session_state["username"], receiver, image_bytes)
                 st.success("Stego image sent!")
+        if "session_id" not in st.session_state:
+            st.session_state["session_id"] = str(uuid.uuid4())  # or use any unique value you want
+
+        session_id = st.session_state["session_id"]
         if st.button(f"Logout", key=f"logout_{session_id}"):
             st.session_state.clear()
             st.rerun()
@@ -303,9 +307,13 @@ if "logged_in" in st.session_state:
             if st.button(f"Delete Image {msg_id}"):
                 delete_image(msg_id)
                 st.success("Image Deleted Successfully!")
-            if st.button(f"Logout", key=f"logout_{session_id}"):
-                st.session_state.clear()
-                st.rerun()
+        if "session_id" not in st.session_state:
+            st.session_state["session_id"] = str(uuid.uuid4())  # or use any unique value you want
+
+        session_id = st.session_state["session_id"]
+        if st.button(f"Logout", key=f"logout_{session_id}"):
+            st.session_state.clear()
+            st.rerun()
 if "admin_logged_in" in st.session_state:
     st.subheader("Admin Dashboard")
     users = get_users()
