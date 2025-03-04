@@ -79,7 +79,8 @@ def delete_image(image_id):
 # Streamlit UI
 st.title("🔒 Stego Image Sharing App")
 st.sidebar.title("Authentication")
-
+menu = ["Login", "Register", "Admin Login"]
+choice = st.sidebar.selectbox("Menu", menu)
 if choice == "Register":
     st.subheader("User Registration")
     new_user = st.text_input("Username")
