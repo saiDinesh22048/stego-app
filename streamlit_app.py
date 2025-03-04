@@ -310,9 +310,21 @@ if "logged_in" in st.session_state:
             image = Image.open(io.BytesIO(img_blob))
             st.image(image, caption="Received Stego Image", width=200)
             
-            # Extract Secret Image (Placeholder for actual model)
             if st.button(f"Extract Secret (ID: {msg_id})"):
-                extracted_secret = image  # Replace with model output
+                mean = [0.485, 0.456, 0.406]
+                std = [0.229, 0.224, 0.225]
+            
+                # Image transformation
+                transform = transforms.Compose([
+                    transforms.Resize((256, 256)),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=mean, std=std)
+                ])
+                stego_tensor = transform(image).unsqueeze(0).to(device)
+                revealed_secret = reveal_net(stego_tensor)
+                revealed_pil = tensor_to_pil(revealed_secret, mean, std)
+
+                extracted_secret =revealed_pil  
                 buf = io.BytesIO()
                 extracted_secret.save(buf, format="PNG")
                 st.image(extracted_secret, caption="Extracted Secret Image", width=200)
