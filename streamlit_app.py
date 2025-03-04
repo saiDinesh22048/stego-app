@@ -84,6 +84,14 @@ def remove_user(username):
     conn.commit()
     conn.close()
 
+def get_all_messages():
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("SELECT id, sender, recipient FROM messages")
+    messages = c.fetchall()
+    conn.close()
+    return messages
+
 # Streamlit UI
 st.title("🔒 Stego Image Sharing App")
 st.sidebar.title("Authentication")
@@ -187,6 +195,15 @@ if "admin_logged_in" in st.session_state:
                 if st.button(f"Remove {user}"):
                     remove_user(user)
                     st.success(f"User {user} removed!")
+    
+    st.subheader("All Messages")
+    messages = get_all_messages()
+    for msg_id, sender, recipient in messages:
+        st.write(f"ID: {msg_id}, Sender: {sender}, Receiver: {recipient}")
+        if st.button(f"Remove Image {msg_id}"):
+            delete_image(msg_id)
+            st.success(f"Image {msg_id} removed!")
+    
     if st.button("Logout"):
         st.session_state.clear()
         st.rerun()
