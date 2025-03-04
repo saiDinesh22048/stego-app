@@ -322,9 +322,9 @@ if "logged_in" in st.session_state:
                 ])
                 with torch.no_grad():
                     
-                    stego_pil = tensor_to_pil(stego_image, mean, std)
+                    
                     stego_tensor = transform(image).unsqueeze(0).to(device)
-                    revealed_secret = reveal_net(stego_pil)
+                    revealed_secret = reveal_net(stego_tensor)
                     revealed_pil = tensor_to_pil(revealed_secret, mean, std)
 
                 extracted_secret =revealed_pil  
