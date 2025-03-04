@@ -255,8 +255,22 @@ if "logged_in" in st.session_state:
         users = get_users()
         users.remove(st.session_state["username"])
         receiver = st.selectbox("Send To", users)
-        cover_file = st.file_uploader("Upload Cover Image", type=["jpg", "png", "jpeg"])
-        secret_file = st.file_uploader("Upload Secret Image", type=["jpg", "png", "jpeg"])
+        # Create columns for displaying images
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("🖼 Cover Image")
+            cover_file = st.file_uploader("Upload Cover Image", type=["png", "jpg", "jpeg"])
+            if cover_image:
+                cover = Image.open(cover_file)
+                st.image(cover, caption="Cover Image", use_column_width=True)
+        
+        with col2:
+            st.subheader("🔒 Secret Image")
+            secret_file = st.file_uploader("Upload Secret Image", type=["png", "jpg", "jpeg"])
+            if secret_image:
+                secret = Image.open(secret_file)
+                st.image(secret, caption="Secret Image", use_column_width=True)
         
         if st.button("Send Stego Image"):
             if cover_file and secret_file and receiver:
