@@ -121,12 +121,12 @@ if "logged_in" in st.session_state:
         for msg_id, sender, img_blob in received_images:
             st.subheader(f"From: {sender}")
             image = Image.open(io.BytesIO(img_blob))
-            st.image(image, caption="Received Stego Image", use_column_width=True)
+            st.image(image, caption="Received Stego Image",use_container_width=True)
             
             # Extract Secret Image (Placeholder for actual model)
             if st.button(f"Extract Secret (ID: {msg_id})"):
                 extracted_secret = image  # Replace with model output
                 buf = io.BytesIO()
                 extracted_secret.save(buf, format="PNG")
-                st.image(extracted_secret, caption="Extracted Secret Image", use_column_width=True)
+                st.image(extracted_secret, caption="Extracted Secret Image", use_container_width=True)
                 st.download_button("Download Secret Image", buf.getvalue(), f"secret_image_{msg_id}.png", "image/png")
