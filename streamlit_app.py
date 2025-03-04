@@ -69,10 +69,10 @@ def get_received_images(username):
     conn.close()
     return messages
     
-def delete_image(image_id):
+def delete_image(msg_id):
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
-    c.execute("DELETE FROM messages WHERE id=?", (image_id,))
+    c.execute("DELETE FROM messages WHERE id=?", (msg_id,))
     conn.commit()
     conn.close()
 
@@ -151,8 +151,8 @@ if "logged_in" in st.session_state:
                 extracted_secret.save(buf, format="PNG")
                 st.image(extracted_secret, caption="Extracted Secret Image", use_container_width=True)
                 st.download_button("Download Secret Image", buf.getvalue(), f"secret_image_{msg_id}.png", "image/png")
-            if st.button(f"Delete Image {img_id}"):
-                delete_image(img_id)
+            if st.button(f"Delete Image {msg_id}"):
+                delete_image(msg_id)
                 st.success("Image Deleted Successfully!")
 if "admin_logged_in" in st.session_state:
     st.subheader("Admin Dashboard")
