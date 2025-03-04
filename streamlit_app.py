@@ -281,7 +281,7 @@ if "logged_in" in st.session_state:
                 image_bytes = pil_to_bytes(stego_pil, format='JPEG')
                 send_stego_image(st.session_state["username"], receiver, image_bytes)
                 st.success("Stego image sent!")
-        if st.button(f"Logout", key=f"logout1"):
+        if st.button(f"Logout", key=f"logout_{session_id}"):
             st.session_state.clear()
             st.rerun()
 
@@ -303,7 +303,7 @@ if "logged_in" in st.session_state:
             if st.button(f"Delete Image {msg_id}"):
                 delete_image(msg_id)
                 st.success("Image Deleted Successfully!")
-            if st.button(f"Logout", key=f"logout2"):
+            if st.button(f"Logout", key=f"logout_{session_id}"):
                 st.session_state.clear()
                 st.rerun()
 if "admin_logged_in" in st.session_state:
