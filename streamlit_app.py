@@ -146,4 +146,4 @@ if cover_file and secret_file:
 
     # Download Stego Image
     st.subheader("Download Stego Image")
-    st.download_button("Download", stego_pil.tobytes(), "stego_image.png", "image/png")
+    st.download_button("Download", stego_pil.tobytes(),"stego_image.png","image/png")
