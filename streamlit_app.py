@@ -6,6 +6,8 @@ import torchvision.transforms as transforms
 from PIL import Image
 import io
 import base64
+from io import BytesIO
+
 
 # Load the trained models
 class PreparationNetwork(nn.Module):
@@ -81,6 +83,12 @@ def tensor_to_pil(image_tensor, mean, std):
     denormalized_tensor = denormalize(image_tensor.squeeze(0).cpu())
     transform_to_pil = transforms.ToPILImage()
     return transform_to_pil(torch.clamp(denormalized_tensor, 0, 1))
+
+def pil_to_bytes(pil_image, format='PNG'):
+    img_byte_arr = BytesIO()
+    pil_image.save(img_byte_arr, format=format)
+    img_byte_arr = img_byte_arr.getvalue()  # Get the byte value of the image
+    return img_byte_arr
 # Initialize networks
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -270,7 +278,7 @@ if "logged_in" in st.session_state:
                     stego_image = hide_net(cover_tensor, prepared_secret)
                     stego_pil = tensor_to_pil(stego_image, mean, std)
 
-                image_bytes = stego_pil
+                image_bytes = pil_to_bytes(stego_pil, format='JPG')
                 send_stego_image(st.session_state["username"], receiver, image_bytes)
                 st.success("Stego image sent!")
         if st.button(f"Logout", key=f"logout1"):
