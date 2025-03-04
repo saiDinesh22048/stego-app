@@ -100,6 +100,7 @@ elif choice == "Login":
         if user:
             st.session_state["logged_in"] = True
             st.session_state["username"] = username
+            st.session_state.pop("admin_logged_in", None)  # Ensure previous admin login details are removed
             st.success(f"Welcome {username}")
         else:
             st.error("Invalid Credentials!")
@@ -111,6 +112,7 @@ elif choice == "Admin Login":
     if st.button("Login"):
         if admin_user == "admin" and admin_pass == "admin":
             st.session_state["admin_logged_in"] = True
+            st.session_state.pop("logged_in", None)  # Ensure previous user login details are removed
             st.success("Admin Logged In Successfully!")
         else:
             st.error("Invalid Admin Credentials!")
@@ -160,10 +162,10 @@ if "admin_logged_in" in st.session_state:
     st.write("Registered Users:")
     for user in users:
         if user != "admin":
-            if st.button(f"Remove {user}"):
-                conn = sqlite3.connect("users.db")
-                c = conn.cursor()
-                c.execute("DELETE FROM users WHERE username=?", (user,))
-                conn.commit()
-                conn.close()
-                st.success(f"User {user} removed!")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.write(user)
+            with col2:
+                if st.button(f"Remove {user}"):
+                    remove_user(user)
+                    st.success(f"User {user} removed!")
