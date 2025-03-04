@@ -102,7 +102,7 @@ if choice == "Register":
             st.error("Username already exists!")
 
 elif choice == "Login":
-    st.session_state.pop("logged_in", None)
+    
     st.session_state.pop("admin_logged_in", None)
     st.subheader("User Login")
     username = st.text_input("Username")
@@ -118,7 +118,7 @@ elif choice == "Login":
 
 elif choice == "Admin Login":
     st.session_state.pop("logged_in", None)
-    st.session_state.pop("admin_logged_in", None)
+   
     st.subheader("Admin Login")
     admin_user = st.text_input("Admin Username")
     admin_pass = st.text_input("Admin Password", type="password")
