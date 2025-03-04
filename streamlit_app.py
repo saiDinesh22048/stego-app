@@ -7,6 +7,103 @@ from PIL import Image
 import io
 import base64
 
+# Load the trained models
+class PreparationNetwork(nn.Module):
+    def __init__(self):
+        super(PreparationNetwork, self).__init__()
+        self.branch1_conv1 = nn.Conv2d(3, 50, kernel_size=3, padding=1)
+        self.branch1_conv2 = nn.Conv2d(50, 50, kernel_size=3, padding=1)
+        self.branch2_conv1 = nn.Conv2d(3, 10, kernel_size=3, padding=1)
+        self.branch2_conv2 = nn.Conv2d(10, 10, kernel_size=3, padding=1)
+        self.branch3_conv1 = nn.Conv2d(3, 5, kernel_size=3, padding=1)
+        self.branch3_conv2 = nn.Conv2d(5, 5, kernel_size=3, padding=1)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        b1 = self.relu(self.branch1_conv1(x))
+        b1 = self.relu(self.branch1_conv2(b1))
+        b2 = self.relu(self.branch2_conv1(x))
+        b2 = self.relu(self.branch2_conv2(b2))
+        b3 = self.relu(self.branch3_conv1(x))
+        b3 = self.relu(self.branch3_conv2(b3))
+        return torch.cat((b1, b2, b3), dim=1)  # 65 channels
+
+class HidingNetwork(nn.Module):
+    def __init__(self):
+        super(HidingNetwork, self).__init__()
+        self.input_conv = nn.Conv2d(68, 50, kernel_size=3, padding=1)
+        self.branch1_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(5)])
+        self.branch2_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(2)])
+        self.branch3_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(2)])
+        self.final_conv = nn.Conv2d(150, 3, kernel_size=3, padding=1)  
+        self.relu = nn.ReLU()
+
+    def forward(self, cover, secret):
+        x = torch.cat((cover, secret), dim=1)
+        x = self.relu(self.input_conv(x))
+        b1, b2, b3 = x, x, x
+        for conv_layer in self.branch1_convs:
+            b1 = self.relu(conv_layer(b1))
+        for conv_layer in self.branch2_convs:
+            b2 = self.relu(conv_layer(b2))
+        for conv_layer in self.branch3_convs:
+            b3 = self.relu(conv_layer(b3))
+        combined = torch.cat((b1, b2, b3), dim=1)
+        return self.final_conv(combined)
+
+class RevealNetwork(nn.Module):
+    def __init__(self):
+        super(RevealNetwork, self).__init__()
+        self.initial_conv = nn.Conv2d(3, 50, kernel_size=3, padding=1)
+        self.branch1_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(5)])
+        self.branch2_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(2)])
+        self.branch3_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(2)])
+        self.final_conv = nn.Conv2d(150, 3, kernel_size=3, padding=1)  
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        x = self.relu(self.initial_conv(x))
+        b1, b2, b3 = x, x, x
+        for conv_layer in self.branch1_convs:
+            b1 = self.relu(conv_layer(b1))
+        for conv_layer in self.branch2_convs:
+            b2 = self.relu(conv_layer(b2))
+        for conv_layer in self.branch3_convs:
+            b3 = self.relu(conv_layer(b3))
+        combined = torch.cat((b1, b2, b3), dim=1)
+        return self.final_conv(combined)
+def tensor_to_pil(image_tensor, mean, std):
+
+    denormalize = transforms.Normalize(
+        mean=[-m / s for m, s in zip(mean, std)],
+        std=[1 / s for s in std]
+    )
+    denormalized_tensor = denormalize(image_tensor.squeeze(0).cpu())
+    transform_to_pil = transforms.ToPILImage()
+    return transform_to_pil(torch.clamp(denormalized_tensor, 0, 1))
+# Initialize networks
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+prep_net = PreparationNetwork().to(device)
+hide_net = HidingNetwork().to(device)
+reveal_net = RevealNetwork().to(device)
+
+# Load the saved weights
+prep_net.load_state_dict(torch.load("preparation_network.pth", map_location=device))
+hide_net.load_state_dict(torch.load("hiding_network.pth", map_location=device))
+reveal_net.load_state_dict(torch.load("reveal_network.pth", map_location=device))
+
+# Set to evaluation mode
+prep_net.eval()
+hide_net.eval()
+reveal_net.eval()
+
+
+
+
+
+
+
 # Database setup
 def init_db():
     conn = sqlite3.connect("users.db")
@@ -154,8 +251,26 @@ if "logged_in" in st.session_state:
         secret_file = st.file_uploader("Upload Secret Image", type=["jpg", "png", "jpeg"])
         if st.button("Send Stego Image"):
             if cover_file and secret_file and receiver:
-                # For simplicity, storing cover image as stego (replace with your model output)
-                image_bytes = cover_file.read()
+                cover_image = Image.open(cover_file).convert("RGB")
+                secret_image = Image.open(secret_file).convert("RGB")
+                mean = [0.485, 0.456, 0.406]
+                std = [0.229, 0.224, 0.225]
+            
+                # Image transformation
+                transform = transforms.Compose([
+                    transforms.Resize((256, 256)),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=mean, std=std)
+                ])
+                cover_tensor = transform(cover_image).unsqueeze(0).to(device)
+                secret_tensor = transform(secret_image).unsqueeze(0).to(device)
+            
+                with torch.no_grad():
+                    prepared_secret = prep_net(secret_tensor)
+                    stego_image = hide_net(cover_tensor, prepared_secret)
+                    stego_pil = tensor_to_pil(stego_image, mean, std)
+
+                image_bytes = stego_pil.read()
                 send_stego_image(st.session_state["username"], receiver, image_bytes)
                 st.success("Stego image sent!")
         if st.button(f"Logout", key=f"logout1"):
