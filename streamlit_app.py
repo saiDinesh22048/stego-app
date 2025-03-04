@@ -82,6 +82,8 @@ st.sidebar.title("Authentication")
 menu = ["Login", "Register", "Admin Login"]
 choice = st.sidebar.selectbox("Menu", menu)
 if choice == "Register":
+    st.session_state.pop("logged_in", None)
+    st.session_state.pop("admin_logged_in", None)
     st.subheader("User Registration")
     new_user = st.text_input("Username")
     new_pass = st.text_input("Password", type="password")
@@ -92,6 +94,8 @@ if choice == "Register":
             st.error("Username already exists!")
 
 elif choice == "Login":
+    st.session_state.pop("logged_in", None)
+    st.session_state.pop("admin_logged_in", None)
     st.subheader("User Login")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
@@ -100,19 +104,19 @@ elif choice == "Login":
         if user:
             st.session_state["logged_in"] = True
             st.session_state["username"] = username
-            st.session_state.pop("admin_logged_in", None)  # Ensure previous admin login details are removed
             st.success(f"Welcome {username}")
         else:
             st.error("Invalid Credentials!")
 
 elif choice == "Admin Login":
+    st.session_state.pop("logged_in", None)
+    st.session_state.pop("admin_logged_in", None)
     st.subheader("Admin Login")
     admin_user = st.text_input("Admin Username")
     admin_pass = st.text_input("Admin Password", type="password")
     if st.button("Login"):
         if admin_user == "admin" and admin_pass == "admin":
             st.session_state["admin_logged_in"] = True
-            st.session_state.pop("logged_in", None)  # Ensure previous user login details are removed
             st.success("Admin Logged In Successfully!")
         else:
             st.error("Invalid Admin Credentials!")
