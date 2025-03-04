@@ -149,9 +149,9 @@ if "logged_in" in st.session_state:
                 image_bytes = cover_file.read()
                 send_stego_image(st.session_state["username"], receiver, image_bytes)
                 st.success("Stego image sent!")
-        if st.button("Logout"):
+        if st.button(f"Logout", key=f"logout1"):
             st.session_state.clear()
-            st.rerun()
+            
 
     # Viewing Received Stego Images
     with tab2:
@@ -171,9 +171,9 @@ if "logged_in" in st.session_state:
             if st.button(f"Delete Image {msg_id}"):
                 delete_image(msg_id)
                 st.success("Image Deleted Successfully!")
-            if st.button("Logout"):
+            if st.button(f"Logout", key=f"logout2"):
                 st.session_state.clear()
-                st.rerun()
+                
 if "admin_logged_in" in st.session_state:
     st.subheader("Admin Dashboard")
     users = get_users()
