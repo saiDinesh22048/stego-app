@@ -263,14 +263,14 @@ if "logged_in" in st.session_state:
             cover_file = st.file_uploader("Upload Cover Image", type=["png", "jpg", "jpeg"])
             if cover_file:
                 cover = Image.open(cover_file)
-                st.image(cover, caption="Cover Image", use_column_width=True)
+                st.image(cover, caption="Cover Image", use_container_width=True)
         
         with col2:
             st.subheader("🔒 Secret Image")
             secret_file = st.file_uploader("Upload Secret Image", type=["png", "jpg", "jpeg"])
             if secret_file:
                 secret = Image.open(secret_file)
-                st.image(secret, caption="Secret Image", use_column_width=True)
+                st.image(secret, caption="Secret Image",use_container_width=True)
         
         if st.button("Send Stego Image"):
             if cover_file and secret_file and receiver:
@@ -294,6 +294,7 @@ if "logged_in" in st.session_state:
                     stego_pil = tensor_to_pil(stego_image, mean, std)
 
                 image_bytes = pil_to_bytes(stego_pil, format='JPEG')
+                st.image(stego_pil, caption="Stego Image",use_container_width=True)
                 send_stego_image(st.session_state["username"], receiver, image_bytes)
                 st.success("Stego image sent!")
        
