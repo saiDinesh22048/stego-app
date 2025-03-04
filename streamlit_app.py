@@ -292,7 +292,7 @@ if "logged_in" in st.session_state:
         for msg_id, sender, img_blob in received_images:
             st.subheader(f"From: {sender}")
             image = Image.open(io.BytesIO(img_blob))
-            st.image(image, caption="Received Stego Image",use_content_width=True)
+            st.image(image, caption="Received Stego Image",use_column_width=True)
             
             # Extract Secret Image (Placeholder for actual model)
             if st.button(f"Extract Secret (ID: {msg_id})"):
