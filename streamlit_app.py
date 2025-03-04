@@ -12,7 +12,7 @@ st.info('hide and seek of images')
 
 # Load the trained models
 class PreparationNetwork(nn.Module):
-    def _init_(self):
+    def __init__(self):
         super(PreparationNetwork, self)._init_()
         self.branch1_conv1 = nn.Conv2d(3, 50, kernel_size=3, padding=1)
         self.branch1_conv2 = nn.Conv2d(50, 50, kernel_size=3, padding=1)
@@ -32,7 +32,7 @@ class PreparationNetwork(nn.Module):
         return torch.cat((b1, b2, b3), dim=1)  # 65 channels
 
 class HidingNetwork(nn.Module):
-    def _init_(self):
+    def __init__(self):
         super(HidingNetwork, self)._init_()
         self.input_conv = nn.Conv2d(68, 50, kernel_size=3, padding=1)
         self.branch1_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(5)])
@@ -55,7 +55,7 @@ class HidingNetwork(nn.Module):
         return self.final_conv(combined)
 
 class RevealNetwork(nn.Module):
-    def _init_(self):
+    def __init__(self):
         super(RevealNetwork, self)._init_()
         self.initial_conv = nn.Conv2d(3, 50, kernel_size=3, padding=1)
         self.branch1_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(5)])
