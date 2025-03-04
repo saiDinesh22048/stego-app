@@ -292,6 +292,7 @@ if "logged_in" in st.session_state:
         for msg_id, sender, img_blob in received_images:
             st.subheader(f"From: {sender}")
             image = Image.open(io.BytesIO(img_blob))
+            image = image.resize((250, 250))
             st.image(image, caption="Received Stego Image",use_container_width=True)
             
             # Extract Secret Image (Placeholder for actual model)
