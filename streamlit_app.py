@@ -261,14 +261,14 @@ if "logged_in" in st.session_state:
         with col1:
             st.subheader("🖼 Cover Image")
             cover_file = st.file_uploader("Upload Cover Image", type=["png", "jpg", "jpeg"])
-            if cover_image:
+            if cover_file:
                 cover = Image.open(cover_file)
                 st.image(cover, caption="Cover Image", use_column_width=True)
         
         with col2:
             st.subheader("🔒 Secret Image")
             secret_file = st.file_uploader("Upload Secret Image", type=["png", "jpg", "jpeg"])
-            if secret_image:
+            if secret_file:
                 secret = Image.open(secret_file)
                 st.image(secret, caption="Secret Image", use_column_width=True)
         
