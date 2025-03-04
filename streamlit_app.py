@@ -75,6 +75,14 @@ def delete_image(msg_id):
     c.execute("DELETE FROM messages WHERE id=?", (msg_id,))
     conn.commit()
     conn.close()
+    
+def remove_user(username):
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("DELETE FROM users WHERE username=?", (username,))
+    c.execute("DELETE FROM messages WHERE sender=? OR recipient=?", (username, username))
+    conn.commit()
+    conn.close()
 
 # Streamlit UI
 st.title("🔒 Stego Image Sharing App")
