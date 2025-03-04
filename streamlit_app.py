@@ -1,149 +1,132 @@
 import streamlit as st
+import sqlite3
 import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
 from PIL import Image
 import numpy as np
-import matplotlib.pyplot as plt
+import os
+from io import BytesIO
+import base64
 
-st.title('🕵Stego-App')
+# Database setup
+def init_db():
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE,
+                    password TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    sender TEXT,
+                    receiver TEXT,
+                    stego_image BLOB)''')
+    conn.commit()
+    conn.close()
 
-st.info('hide and seek of images')
+init_db()
 
-# Load the trained models
-class PreparationNetwork(nn.Module):
-    def __init__(self):
-        super(PreparationNetwork, self).__init__()
-        self.branch1_conv1 = nn.Conv2d(3, 50, kernel_size=3, padding=1)
-        self.branch1_conv2 = nn.Conv2d(50, 50, kernel_size=3, padding=1)
-        self.branch2_conv1 = nn.Conv2d(3, 10, kernel_size=3, padding=1)
-        self.branch2_conv2 = nn.Conv2d(10, 10, kernel_size=3, padding=1)
-        self.branch3_conv1 = nn.Conv2d(3, 5, kernel_size=3, padding=1)
-        self.branch3_conv2 = nn.Conv2d(5, 5, kernel_size=3, padding=1)
-        self.relu = nn.ReLU()
-
-    def forward(self, x):
-        b1 = self.relu(self.branch1_conv1(x))
-        b1 = self.relu(self.branch1_conv2(b1))
-        b2 = self.relu(self.branch2_conv1(x))
-        b2 = self.relu(self.branch2_conv2(b2))
-        b3 = self.relu(self.branch3_conv1(x))
-        b3 = self.relu(self.branch3_conv2(b3))
-        return torch.cat((b1, b2, b3), dim=1)  # 65 channels
-
-class HidingNetwork(nn.Module):
-    def __init__(self):
-        super(HidingNetwork, self).__init__()
-        self.input_conv = nn.Conv2d(68, 50, kernel_size=3, padding=1)
-        self.branch1_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(5)])
-        self.branch2_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(2)])
-        self.branch3_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(2)])
-        self.final_conv = nn.Conv2d(150, 3, kernel_size=3, padding=1)  
-        self.relu = nn.ReLU()
-
-    def forward(self, cover, secret):
-        x = torch.cat((cover, secret), dim=1)
-        x = self.relu(self.input_conv(x))
-        b1, b2, b3 = x, x, x
-        for conv_layer in self.branch1_convs:
-            b1 = self.relu(conv_layer(b1))
-        for conv_layer in self.branch2_convs:
-            b2 = self.relu(conv_layer(b2))
-        for conv_layer in self.branch3_convs:
-            b3 = self.relu(conv_layer(b3))
-        combined = torch.cat((b1, b2, b3), dim=1)
-        return self.final_conv(combined)
-
-class RevealNetwork(nn.Module):
-    def __init__(self):
-        super(RevealNetwork, self).__init__()
-        self.initial_conv = nn.Conv2d(3, 50, kernel_size=3, padding=1)
-        self.branch1_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(5)])
-        self.branch2_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(2)])
-        self.branch3_convs = nn.ModuleList([nn.Conv2d(50, 50, kernel_size=3, padding=1) for _ in range(2)])
-        self.final_conv = nn.Conv2d(150, 3, kernel_size=3, padding=1)  
-        self.relu = nn.ReLU()
-
-    def forward(self, x):
-        x = self.relu(self.initial_conv(x))
-        b1, b2, b3 = x, x, x
-        for conv_layer in self.branch1_convs:
-            b1 = self.relu(conv_layer(b1))
-        for conv_layer in self.branch2_convs:
-            b2 = self.relu(conv_layer(b2))
-        for conv_layer in self.branch3_convs:
-            b3 = self.relu(conv_layer(b3))
-        combined = torch.cat((b1, b2, b3), dim=1)
-        return self.final_conv(combined)
-# Initialize networks
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-prep_net = PreparationNetwork().to(device)
-hide_net = HidingNetwork().to(device)
-reveal_net = RevealNetwork().to(device)
-
-# Load the saved weights
-prep_net.load_state_dict(torch.load("preparation_network.pth", map_location=device))
-hide_net.load_state_dict(torch.load("hiding_network.pth", map_location=device))
-reveal_net.load_state_dict(torch.load("reveal_network.pth", map_location=device))
-
-# Set to evaluation mode
-prep_net.eval()
-hide_net.eval()
-reveal_net.eval()
-
-st.write("Models loaded successfully!")
-
-# Convert tensors to images
-def tensor_to_pil(image_tensor, mean, std):
-
-    denormalize = transforms.Normalize(
-        mean=[-m / s for m, s in zip(mean, std)],
-        std=[1 / s for s in std]
-    )
-    denormalized_tensor = denormalize(image_tensor.squeeze(0).cpu())
-    transform_to_pil = transforms.ToPILImage()
-    return transform_to_pil(torch.clamp(denormalized_tensor, 0, 1))
-st.sidebar.header("Upload Images")
-cover_file = st.sidebar.file_uploader("Upload Cover Image", type=["jpg", "png", "jpeg"])
-secret_file = st.sidebar.file_uploader("Upload Secret Image", type=["jpg", "png", "jpeg"])
-
-if cover_file and secret_file:
-    cover_image = Image.open(cover_file).convert("RGB")
-    secret_image = Image.open(secret_file).convert("RGB")
-    mean = [0.485, 0.456, 0.406]
-    std = [0.229, 0.224, 0.225]
-
-    # Image transformation
-    transform = transforms.Compose([
-        transforms.Resize((256, 256)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=mean, std=std)
-    ])
-    cover_tensor = transform(cover_image).unsqueeze(0).to(device)
-    secret_tensor = transform(secret_image).unsqueeze(0).to(device)
-
-    with torch.no_grad():
-        prepared_secret = prep_net(secret_tensor)
-        stego_image = hide_net(cover_tensor, prepared_secret)
-        stego_pil = tensor_to_pil(stego_image, mean, std)
-        stego_tensor = transform(stego_pil).unsqueeze(0).to(device)
-        revealed_secret = reveal_net(stego_tensor)
+def register_user(username, password):
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    try:
+        c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False
+    finally:
+        conn.close()
 
 
+def login_user(username, password):
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
+    user = c.fetchone()
+    conn.close()
+    return user
 
-    cover_pil  = tensor_to_pil(cover_tensor, mean, std)
-    secret_pil = tensor_to_pil(secret_tensor, mean, std)
-    stego_pil = tensor_to_pil(stego_image, mean, std)
-    revealed_pil = tensor_to_pil(revealed_secret, mean, std)
+def get_users():
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("SELECT username FROM users")
+    users = c.fetchall()
+    conn.close()
+    return [user[0] for user in users]
 
-    st.subheader("Results")
-    col1, col2, col3, col4 = st.columns(4)
-    col1.image(cover_pil, caption="Cover Image", use_container_width=True)
-    col2.image(secret_pil, caption="Secret Image",use_container_width=True)
-    col3.image(stego_pil, caption="Stego Image", use_container_width=True)
-    col4.image(revealed_pil, caption="Revealed Secret", use_container_width=True)
+def send_stego_image(sender, receiver, stego_image):
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    stego_bytes = BytesIO()
+    stego_image.save(stego_bytes, format="PNG")
+    c.execute("INSERT INTO messages (sender, receiver, stego_image) VALUES (?, ?, ?)", 
+              (sender, receiver, stego_bytes.getvalue()))
+    conn.commit()
+    conn.close()
 
-    # Download Stego Image
-    st.subheader("Download Stego Image")
-    st.download_button("Download", stego_pil.tobytes(),"stego_image.png","image/png")
+def get_received_images(username):
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("SELECT sender, stego_image FROM messages WHERE receiver=?", (username,))
+    images = c.fetchall()
+    conn.close()
+    return images
+
+st.title("🕵 Stego-App: Secure Image Sharing")
+
+menu = ["Login", "Register"]
+choice = st.sidebar.selectbox("Menu", menu)
+
+if choice == "Register":
+    st.subheader("Create New Account")
+    new_user = st.text_input("Username")
+    new_password = st.text_input("Password", type='password')
+    if st.button("Register"):
+        if register_user(new_user, new_password):
+            st.success("Account created successfully! Proceed to login.")
+        else:
+            st.error("Username already exists. Try another one.")
+
+elif choice == "Login":
+    st.subheader("Login to Your Account")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type='password')
+    if st.button("Login"):
+        user = login_user(username, password)
+        if user:
+            st.session_state['logged_in'] = True
+            st.session_state['username'] = username
+            st.success(f"Welcome {username}!")
+        else:
+            st.error("Invalid credentials")
+
+if 'logged_in' in st.session_state and st.session_state['logged_in']:
+    st.subheader(f"Welcome, {st.session_state['username']}!")
+    option = st.selectbox("Select Option", ["Send Stego Image", "View Received Stego Images"])
+    users = get_users()
+    users.remove(st.session_state['username'])  # Remove self from list
+
+    if option == "Send Stego Image":
+        receiver = st.selectbox("Select a User to Send Stego Image", users)
+        cover_file = st.file_uploader("Upload Cover Image", type=["jpg", "png", "jpeg"])
+        secret_file = st.file_uploader("Upload Secret Image", type=["jpg", "png", "jpeg"])
+        if st.button("Create & Send Stego Image"):
+            if cover_file and secret_file:
+                cover_image = Image.open(cover_file).convert("RGB")
+                secret_image = Image.open(secret_file).convert("RGB")
+                # Dummy stego processing - Replace with your model
+                stego_image = cover_image  # Placeholder
+                send_stego_image(st.session_state['username'], receiver, stego_image)
+                st.success("Stego Image Sent Successfully!")
+    
+    elif option == "View Received Stego Images":
+        images = get_received_images(st.session_state['username'])
+        if images:
+            for sender, img_data in images:
+                st.write(f"From: {sender}")
+                img = Image.open(BytesIO(img_data))
+                st.image(img, caption="Received Stego Image")
+        else:
+            st.info("No images received yet.")
