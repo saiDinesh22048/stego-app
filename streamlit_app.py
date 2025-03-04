@@ -7,7 +7,7 @@ from PIL import Image
 import io
 import base64
 from io import BytesIO
-
+import uuid
 
 # Load the trained models
 class PreparationNetwork(nn.Module):
