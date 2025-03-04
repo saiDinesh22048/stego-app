@@ -4,9 +4,7 @@ import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
 from PIL import Image
-import numpy as np
-import os
-from io import BytesIO
+import io
 import base64
 
 # Database setup
@@ -27,6 +25,7 @@ def init_db():
 
 init_db()
 
+# Authentication functions
 def register_user(username, password):
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
@@ -38,7 +37,6 @@ def register_user(username, password):
         return False
     finally:
         conn.close()
-
 
 def login_user(username, password):
     conn = sqlite3.connect("users.db")
@@ -52,81 +50,83 @@ def get_users():
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
     c.execute("SELECT username FROM users")
-    users = c.fetchall()
+    users = [user[0] for user in c.fetchall()]
     conn.close()
-    return [user[0] for user in users]
+    return users
 
-def send_stego_image(sender, receiver, stego_image):
+def send_stego_image(sender, receiver, image_bytes):
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
-    stego_bytes = BytesIO()
-    stego_image.save(stego_bytes, format="PNG")
-    c.execute("INSERT INTO messages (sender, receiver, stego_image) VALUES (?, ?, ?)", 
-              (sender, receiver, stego_bytes.getvalue()))
+    c.execute("INSERT INTO messages (sender, receiver, stego_image) VALUES (?, ?, ?)", (sender, receiver, image_bytes))
     conn.commit()
     conn.close()
 
 def get_received_images(username):
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
-    c.execute("SELECT sender, stego_image FROM messages WHERE receiver=?", (username,))
-    images = c.fetchall()
+    c.execute("SELECT id, sender, stego_image FROM messages WHERE receiver=?", (username,))
+    messages = c.fetchall()
     conn.close()
-    return images
+    return messages
 
-st.title("🕵 Stego-App: Secure Image Sharing")
+# Streamlit UI
+st.title("🔒 Stego Image Sharing App")
+st.sidebar.title("Authentication")
 
-menu = ["Login", "Register"]
-choice = st.sidebar.selectbox("Menu", menu)
-
+# Login/Register
+choice = st.sidebar.radio("Select an option", ["Login", "Register"])
 if choice == "Register":
-    st.subheader("Create New Account")
-    new_user = st.text_input("Username")
-    new_password = st.text_input("Password", type='password')
-    if st.button("Register"):
-        if register_user(new_user, new_password):
-            st.success("Account created successfully! Proceed to login.")
+    username = st.sidebar.text_input("Username")
+    password = st.sidebar.text_input("Password", type="password")
+    if st.sidebar.button("Register"):
+        if register_user(username, password):
+            st.sidebar.success("Registered successfully. Please login.")
         else:
-            st.error("Username already exists. Try another one.")
-
+            st.sidebar.error("Username already exists!")
 elif choice == "Login":
-    st.subheader("Login to Your Account")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type='password')
-    if st.button("Login"):
+    username = st.sidebar.text_input("Username")
+    password = st.sidebar.text_input("Password", type="password")
+    if st.sidebar.button("Login"):
         user = login_user(username, password)
         if user:
-            st.session_state['logged_in'] = True
-            st.session_state['username'] = username
-            st.success(f"Welcome {username}!")
+            st.session_state["logged_in"] = True
+            st.session_state["username"] = username
+            st.sidebar.success(f"Welcome, {username}!")
         else:
-            st.error("Invalid credentials")
+            st.sidebar.error("Invalid credentials")
 
-if 'logged_in' in st.session_state and st.session_state['logged_in']:
-    st.subheader(f"Welcome, {st.session_state['username']}!")
-    option = st.selectbox("Select Option", ["Send Stego Image", "View Received Stego Images"])
-    users = get_users()
-    users.remove(st.session_state['username'])  # Remove self from list
+# After login
+if "logged_in" in st.session_state:
+    st.subheader(f"Welcome, {st.session_state['username']}")
 
-    if option == "Send Stego Image":
-        receiver = st.selectbox("Select a User to Send Stego Image", users)
+    tab1, tab2 = st.tabs(["Send Stego Image", "Received Stego Images"])
+
+    # Sending Stego Images
+    with tab1:
+        users = get_users()
+        users.remove(st.session_state["username"])
+        receiver = st.selectbox("Send To", users)
         cover_file = st.file_uploader("Upload Cover Image", type=["jpg", "png", "jpeg"])
         secret_file = st.file_uploader("Upload Secret Image", type=["jpg", "png", "jpeg"])
-        if st.button("Create & Send Stego Image"):
-            if cover_file and secret_file:
-                cover_image = Image.open(cover_file).convert("RGB")
-                secret_image = Image.open(secret_file).convert("RGB")
-                # Dummy stego processing - Replace with your model
-                stego_image = cover_image  # Placeholder
-                send_stego_image(st.session_state['username'], receiver, stego_image)
-                st.success("Stego Image Sent Successfully!")
-    
-    elif option == "View Received Stego Images":
-        images = get_received_images(st.session_state['username'])
-        if images:
-            for sender, img_data in images:
-                st.write(f"From: {sender}")
-                img = Image.open(BytesIO(img_data))
-                st.image(img, caption="Received Stego Image")
-        else:
-            st.info("No images received yet.")
+        if st.button("Send Stego Image"):
+            if cover_file and secret_file and receiver:
+                # For simplicity, storing cover image as stego (replace with your model output)
+                image_bytes = cover_file.read()
+                send_stego_image(st.session_state["username"], receiver, image_bytes)
+                st.success("Stego image sent!")
+
+    # Viewing Received Stego Images
+    with tab2:
+        received_images = get_received_images(st.session_state["username"])
+        for msg_id, sender, img_blob in received_images:
+            st.subheader(f"From: {sender}")
+            image = Image.open(io.BytesIO(img_blob))
+            st.image(image, caption="Received Stego Image", use_column_width=True)
+            
+            # Extract Secret Image (Placeholder for actual model)
+            if st.button(f"Extract Secret (ID: {msg_id})"):
+                extracted_secret = image  # Replace with model output
+                buf = io.BytesIO()
+                extracted_secret.save(buf, format="PNG")
+                st.image(extracted_secret, caption="Extracted Secret Image", use_column_width=True)
+                st.download_button("Download Secret Image", buf.getvalue(), f"secret_image_{msg_id}.png", "image/png")
