@@ -87,7 +87,7 @@ def remove_user(username):
 def get_all_messages():
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
-    c.execute("SELECT id, sender, recipient FROM messages")
+    c.execute("SELECT id, sender, receiver FROM messages")
     messages = c.fetchall()
     conn.close()
     return messages
