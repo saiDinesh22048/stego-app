@@ -73,6 +73,7 @@ def delete_image(msg_id):
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
     c.execute("DELETE FROM messages WHERE id=?", (msg_id,))
+    c.execute("DELETE FROM SQLITE_SEQUENCE WHERE name='messages'")
     conn.commit()
     conn.close()
     
