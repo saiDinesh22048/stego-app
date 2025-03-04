@@ -68,32 +68,52 @@ def get_received_images(username):
     messages = c.fetchall()
     conn.close()
     return messages
+    
+def delete_image(image_id):
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("DELETE FROM messages WHERE id=?", (image_id,))
+    conn.commit()
+    conn.close()
 
 # Streamlit UI
 st.title("🔒 Stego Image Sharing App")
 st.sidebar.title("Authentication")
 
-# Login/Register
-choice = st.sidebar.radio("Select an option", ["Login", "Register"])
 if choice == "Register":
-    username = st.sidebar.text_input("Username")
-    password = st.sidebar.text_input("Password", type="password")
-    if st.sidebar.button("Register"):
-        if register_user(username, password):
-            st.sidebar.success("Registered successfully. Please login.")
+    st.subheader("User Registration")
+    new_user = st.text_input("Username")
+    new_pass = st.text_input("Password", type="password")
+    if st.button("Register"):
+        if register_user(new_user, new_pass):
+            st.success("Registered Successfully! You can now login.")
         else:
-            st.sidebar.error("Username already exists!")
+            st.error("Username already exists!")
+
 elif choice == "Login":
-    username = st.sidebar.text_input("Username")
-    password = st.sidebar.text_input("Password", type="password")
-    if st.sidebar.button("Login"):
+    st.subheader("User Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
         user = login_user(username, password)
         if user:
             st.session_state["logged_in"] = True
             st.session_state["username"] = username
-            st.sidebar.success(f"Welcome, {username}!")
+            st.success(f"Welcome {username}")
         else:
-            st.sidebar.error("Invalid credentials")
+            st.error("Invalid Credentials!")
+
+elif choice == "Admin Login":
+    st.subheader("Admin Login")
+    admin_user = st.text_input("Admin Username")
+    admin_pass = st.text_input("Admin Password", type="password")
+    if st.button("Login"):
+        if admin_user == "admin" and admin_pass == "admin":
+            st.session_state["admin_logged_in"] = True
+            st.success("Admin Logged In Successfully!")
+        else:
+            st.error("Invalid Admin Credentials!")
+
 
 # After login
 if "logged_in" in st.session_state:
@@ -130,3 +150,19 @@ if "logged_in" in st.session_state:
                 extracted_secret.save(buf, format="PNG")
                 st.image(extracted_secret, caption="Extracted Secret Image", use_container_width=True)
                 st.download_button("Download Secret Image", buf.getvalue(), f"secret_image_{msg_id}.png", "image/png")
+            if st.button(f"Delete Image {img_id}"):
+                delete_image(img_id)
+                st.success("Image Deleted Successfully!")
+if "admin_logged_in" in st.session_state:
+    st.subheader("Admin Dashboard")
+    users = get_users()
+    st.write("Registered Users:")
+    for user in users:
+        if user != "admin":
+            if st.button(f"Remove {user}"):
+                conn = sqlite3.connect("users.db")
+                c = conn.cursor()
+                c.execute("DELETE FROM users WHERE username=?", (user,))
+                conn.commit()
+                conn.close()
+                st.success(f"User {user} removed!")
