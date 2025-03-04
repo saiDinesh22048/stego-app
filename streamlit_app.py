@@ -256,7 +256,9 @@ if "logged_in" in st.session_state:
         users.remove(st.session_state["username"])
         receiver = st.selectbox("Send To", users)
         cover_file = st.file_uploader("Upload Cover Image", type=["jpg", "png", "jpeg"])
+        st.image(cover_file, caption="cover Image", width=200)
         secret_file = st.file_uploader("Upload Secret Image", type=["jpg", "png", "jpeg"])
+        st.image(secret_file, caption="secret Image", width=200)
         if st.button("Send Stego Image"):
             if cover_file and secret_file and receiver:
                 cover_image = Image.open(cover_file).convert("RGB")
@@ -299,7 +301,7 @@ if "logged_in" in st.session_state:
                 extracted_secret = image  # Replace with model output
                 buf = io.BytesIO()
                 extracted_secret.save(buf, format="PNG")
-                st.image(extracted_secret, caption="Extracted Secret Image", use_container_width=True)
+                st.image(extracted_secret, caption="Extracted Secret Image", width=200)
                 st.download_button("Download Secret Image", buf.getvalue(), f"secret_image_{msg_id}.png", "image/png")
             if st.button(f"Delete Image {msg_id}"):
                 delete_image(msg_id)
