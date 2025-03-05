@@ -327,11 +327,9 @@ if "logged_in" in st.session_state:
                     revealed_secret = reveal_net(stego_tensor)
                     revealed_pil = tensor_to_pil(revealed_secret, mean, std)
 
-                extracted_secret =revealed_pil  
-                buf = io.BytesIO()
-                extracted_secret.save(buf, format="PNG")
-                st.image(extracted_secret, caption="Extracted Secret Image", use_container_width=True)
-                st.download_button("Download Secret Image", buf.getvalue(), f"secret_image_{msg_id}.png", "image/png")
+                
+                st.image(revealed_pil, caption="Extracted Secret Image", use_container_width=True)
+                st.download_button("Download", stego_pil.tobytes(), "stego_image.png", "image/png")
             if st.button(f"Delete Image {msg_id}"):
                 delete_image(msg_id)
                 st.success("Image Deleted Successfully!")
