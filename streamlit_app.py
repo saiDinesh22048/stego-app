@@ -329,7 +329,7 @@ if "logged_in" in st.session_state:
 
                 
                 st.image(revealed_pil, caption="Extracted Secret Image", use_container_width=True)
-                st.download_button("Download", stego_pil.tobytes(), "stego_image.png", "image/png")
+                st.download_button("Download", revealed_pil.tobytes(), "stego_image.png", "image/png")
             if st.button(f"Delete Image {msg_id}"):
                 delete_image(msg_id)
                 st.success("Image Deleted Successfully!")
