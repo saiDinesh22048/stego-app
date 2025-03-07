@@ -247,6 +247,7 @@ elif choice == "Admin Login":
 # After login
 if "logged_in" in st.session_state:
     st.subheader(f"Welcome, {st.session_state['username']}")
+    st.write("hi")
 
     tab1, tab2 = st.tabs(["Send Stego Image", "Received Stego Images"])
 
