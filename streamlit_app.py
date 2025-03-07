@@ -329,7 +329,7 @@ if "logged_in" in st.session_state:
                     revealed_pil = tensor_to_pil(revealed_secret, mean, std)
 
                 
-                st.image(revealed_pil, caption="Extracted Secret Image", use_container_width=True)
+                st.image(revealed_pil, caption="Extracted Secret Image",width=200)
                 st.download_button("Download", revealed_pil.tobytes(), "stego_image.png", "image/png")
             if st.button(f"Delete Image {msg_id}"):
                 delete_image(msg_id)
